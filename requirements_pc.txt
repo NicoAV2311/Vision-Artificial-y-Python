@@ -1,0 +1,22 @@
+# ========================
+# Requerimientos para PC (Desarrollo)
+# Reconocimiento de Objetos con EV3DEV
+# ========================
+# Este archivo incluye dependencias completas
+# optimizadas para entrenar, probar y depurar en PC.
+# ========================
+
+# Procesamiento de imágenes
+opencv-python>=4.5.0
+
+# Cálculos numéricos
+numpy>=1.21.0
+
+# IA completa (TensorFlow para entrenamiento y pruebas en PC)
+tensorflow>=2.10.0
+
+# Manejo de imágenes
+Pillow>=8.0.0
+
+# (Opcional) Control del EV3 desde PC, útil para simulación o depuración
+python-ev3dev2

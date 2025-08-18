@@ -1,0 +1,26 @@
+# ========================
+# Requerimientos del Proyecto
+# Reconocimiento de Objetos con EV3DEV
+# ========================
+# Instalar en PC para desarrollo/pruebas
+# Nota: En EV3DEV se recomienda usar tflite-runtime en lugar de tensorflow completo
+# ========================
+
+# Procesamiento de imágenes
+opencv-python>=4.5.0
+
+# Cálculos numéricos
+numpy>=1.21.0
+
+# Modelos de IA (en PC)
+tensorflow>=2.10.0
+
+# Modelos de IA (en EV3DEV, sustituye tensorflow por este)
+# tflite-runtime>=2.5.0
+
+# Manejo de imágenes
+Pillow>=8.0.0
+
+# Control del EV3 con EV3DEV
+python-ev3dev2
+
