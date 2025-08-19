@@ -1,11 +1,4 @@
-# Diagramas de flujo del proyecto vision artificial
 
-A continuación se presentan los diagramas de flujo de los módulos principales usando el formato Mermaid. Puedes visualizar estos diagramas en VS Code con la extensión adecuada o en https://mermaid.live.
-
----
-
-## 1. camera.py
-```mermaid
 flowchart TD
     A[Inicio] --> B[Inicializar IPCamera]
     B --> C{¿URL válida?}
@@ -18,12 +11,7 @@ flowchart TD
     I -- No --> J[Reintentar conexión]
     I -- Sí --> K[Retornar frame]
     K --> L[Fin]
-```
 
----
-
-## 2. classifier.py
-```mermaid
 flowchart TD
     A[Inicio] --> B[Cargar modelo MobileNetV2]
     B --> C[Recibir frame]
@@ -34,12 +22,7 @@ flowchart TD
     G --> H[Decodificar predicciones]
     H --> I[Retornar etiquetas/confianza]
     I --> J[Fin]
-```
 
----
-
-## 3. ev3_controller.py
-```mermaid
 flowchart TD
     A[Inicio] --> B[Conectar a motores EV3]
     B --> C{¿Conexión exitosa?}
@@ -49,12 +32,7 @@ flowchart TD
     F --> G[Esperar duración]
     G --> H[Detener motores]
     H --> I[Fin]
-```
 
----
-
-## 4. main.py
-```mermaid
 flowchart TD
     A[Inicio] --> B[Inicializar cámara]
     B --> C[Inicializar motores EV3]
@@ -69,8 +47,3 @@ flowchart TD
     J -- No --> F
     J -- Sí --> K[Activar motores]
     K --> F
-```
-
----
-
-> Puedes copiar estos bloques en un visor Mermaid para ver los diagramas visualmente.

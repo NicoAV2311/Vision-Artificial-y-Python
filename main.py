@@ -6,12 +6,12 @@ import time
 import logging
 from camera import IPCamera
 from classifier import classify_image
-from ev3_controller import connect_to_ev3, move_motor  # ← CAMBIO
+from ev3_controller import connect_to_ev3, move_motor
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-CAMERA_URL = "http://192.168.1.28:8080/video"
+CAMERA_URL = "http://192.168.1.29:8080/video"
 TARGET_OBJECT = "banana"
 CONFIDENCE_THRESHOLD = 0.5
 FRAME_DELAY = 0.5  # segundos
@@ -20,7 +20,7 @@ def main():
     camera = IPCamera(CAMERA_URL)
 
     try:
-        motor_b = connect_to_ev3()  # ← CAMBIO
+        motor_b = connect_to_ev3()
         logging.info("Motor EV3 listo.")
     except Exception as e:
         logging.error(f"No se pudo inicializar el motor EV3: {e}")
