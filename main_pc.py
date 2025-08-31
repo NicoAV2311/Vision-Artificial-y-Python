@@ -8,7 +8,7 @@ from classifier import classify_image
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # URL de la cámara IP (reemplaza con la de tu celular con IP Webcam)
-CAMERA_URL = "http://192.168.1.29:8080/video"
+CAMERA_URL = "http://192.168.1.28:8080/video"
 FRAME_DELAY = 0.5  # segundos
 
 def main():
