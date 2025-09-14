@@ -12,7 +12,7 @@ class IPCamera:
         """
         Inicializa la cámara IP.
 
-        :param url: URL del stream de video (ej. http://192.168.1.28:8080/video)
+        :param url: URL del stream de video (ej. http://192.168.1.29:8080/video)
         :param reconnect_delay: Tiempo en segundos para reintentar conexión
         """
         if not isinstance(url, str) or not url.startswith("http"):
@@ -38,6 +38,10 @@ class IPCamera:
             print("[WARN] Cámara desconectada, reintentando...")
             time.sleep(self.reconnect_delay)
             self.connect()
+
+        if self.cap is None:
+            print("[ERROR] El recurso de la cámara no está disponible.")
+            return None
 
         ret, frame = self.cap.read()
         if not ret:
