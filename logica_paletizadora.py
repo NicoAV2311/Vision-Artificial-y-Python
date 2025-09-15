@@ -9,6 +9,7 @@ Fecha: 2025-09-14
 """
 
 import time
+from timeit import main
 import cv2
 from camera import IPCamera
 from classifier import classify_image
