@@ -1,4 +1,5 @@
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 logica_paletizadora.py
 Script para control de paletizadora automática usando visión artificial y EV3.
@@ -8,8 +9,9 @@ Autores: [Nicolas Arango Vergara, Miguel Angel Muñoz]
 Fecha: 2025-09-14
 """
 
+
+import logging
 import time
-from timeit import main
 import cv2
 from camera import IPCamera
 from classifier import classify_image
@@ -18,88 +20,103 @@ from ev3dev2.sensor import INPUT_1
 from ev3dev2.sensor.lego import TouchSensor
 
 
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# Configuración de logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # Inicialización de motores y sensor de presión
-motor_vinilo = LargeMotor(OUTPUT_A)
-motor_base = LargeMotor(OUTPUT_B)
-sensor_presion = TouchSensor(INPUT_1)
+try:
+    motor_vinilo = LargeMotor(OUTPUT_A)
+    motor_base = LargeMotor(OUTPUT_B)
+    sensor_presion = TouchSensor(INPUT_1)
+    logging.info("Motores y sensor inicializados correctamente.")
+except Exception as e:
+    logging.error(f"Error inicializando hardware EV3: {e}")
+    raise
 
 
-# Configuración de la cámara IP
-CAMERA_URL = "http://192.168.1.29:8080/video"
+# Configuración de la cámara IP (varias posibles IPs)
+CAMERA_URLS = [
+    "http://192.168.1.29:8080/video",
+    "http://192.168.1.28:8080/video"
+]
 FRAME_DELAY = 0.5  # segundos entre frames
 
+def get_working_camera(urls):
+    for url in urls:
+        try:
+            cam = IPCamera(url)
+            logging.info(f"Cámara conectada exitosamente a {url}")
+            return cam
+        except Exception as e:
+            logging.warning(f"No se pudo conectar a {url}: {e}")
+    raise RuntimeError("No se pudo conectar a ninguna cámara IP.")
 
-# Objetos que disparan la paletizadora (modificar según necesidad)
+# Objetos que disparan la paletizadora
 OBJETIVOS = {"bottle", "banana"}
 
 
 def rutina_paletizadora(velocidad_base=25, altura=0.6):
     """
-    Ejecuta la rutina de paletizado:
-    - Baja el vinilo hasta el sensor de presión.
-    - Inicia la base giratoria.
-    - Realiza movimientos de subida y bajada del vinilo.
-    - Detiene la base al finalizar.
-
-    Args:
-        velocidad_base (int): Velocidad de la base giratoria.
-        altura (float): Altura de rotación del vinilo.
+    Ejecuta la rutina de paletizado.
     """
-    print(">>> Iniciando rutina de paletizado <<<")
-
-    # Bajar hasta el sensor de presión
-    motor_vinilo.on(15)
-    while not sensor_presion.is_pressed:
-        time.sleep(0.1)
-    motor_vinilo.stop()
-
-    # Iniciar base giratoria
-    motor_base.on(velocidad_base)
-
-    for _ in range(6):
-        motor_vinilo.on_for_rotations(-15, altura)  # Subir vinilo
-        time.sleep(0.5)
-        motor_vinilo.stop()
-        time.sleep(0.5)
-        motor_vinilo.on_for_rotations(15, altura)   # Bajar vinilo
-        time.sleep(0.5)
+    logging.info(f"Iniciando rutina de paletizado (velocidad={velocidad_base}, altura={altura})")
+    try:
+        motor_vinilo.on(15)
+        start = time.time()
+        while not sensor_presion.is_pressed:
+            time.sleep(0.1)
+            if time.time() - start > 10.0:
+                logging.error("Timeout bajando vinilo (sensor no presionado)")
+                break
         motor_vinilo.stop()
 
-    motor_base.stop()
-    print(">>> Rutina completada <<<")
+        motor_base.on(velocidad_base)
 
+        for i in range(6):
+            logging.info(f"Ciclo {i+1}/6: Subiendo vinilo")
+            motor_vinilo.on_for_rotations(-15, altura)
+            time.sleep(0.5)
+            motor_vinilo.stop()
+            time.sleep(0.5)
+            logging.info(f"Ciclo {i+1}/6: Bajando vinilo")
+            motor_vinilo.on_for_rotations(15, altura)
+            time.sleep(0.5)
+            motor_vinilo.stop()
 
+        motor_base.stop()
+        logging.info("Rutina completada")
+    except Exception as e:
+        logging.error(f"Error en rutina de paletizado: {e}")
+        try:
+            motor_vinilo.stop()
+            motor_base.stop()
+        except Exception:
+            pass
 
-    """
-    Función principal del sistema:
-    - Inicializa la cámara IP.
-    - Captura frames en tiempo real.
-    - Clasifica objetos en cada frame.
-    - Ejecuta la rutina de paletizado si se detecta un objetivo.
-    - Muestra la imagen de la cámara y permite salir con 'q'.
-    """
-    camera = IPCamera(CAMERA_URL)
+def main():
+
+    try:
+        camera = get_working_camera(CAMERA_URLS)
+    except Exception as e:
+        logging.error(f"No se pudo inicializar la cámara: {e}")
+        return
 
     try:
         while True:
             frame = camera.get_frame()
             if frame is None:
+                logging.warning("No se pudo capturar imagen.")
                 time.sleep(FRAME_DELAY)
                 continue
 
             resultados = classify_image(frame, top=3)
-            print(f"Detecciones: {resultados}")
+            logging.info(f"Detecciones: {resultados}")
 
-            # Verificar si hay un objeto objetivo con suficiente confianza
             for etiqueta, confianza in resultados:
-                if etiqueta in OBJETIVOS and confianza > 0.6:  # umbral de confianza
+                if etiqueta in OBJETIVOS and confianza > 0.6:
                     rutina_paletizadora()
-                    break  # evitar múltiples disparos seguidos
+                    break
 
-            # Mostrar imagen de la cámara
             cv2.imshow("Cámara IP", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -107,13 +124,17 @@ def rutina_paletizadora(velocidad_base=25, altura=0.6):
             time.sleep(FRAME_DELAY)
 
     except KeyboardInterrupt:
-        print("Interrumpido por el usuario.")
+        logging.info("Interrumpido por el usuario.")
+    except Exception as e:
+        logging.error(f"Error en el bucle principal: {e}")
     finally:
-        camera.release()
-        cv2.destroyAllWindows()
-        motor_vinilo.stop()
-        motor_base.stop()
-
-
-if __name__ == "__main__":
-    main()
+        try:
+            camera.release()
+            cv2.destroyAllWindows()
+        except Exception:
+            pass
+        try:
+            motor_vinilo.stop()
+            motor_base.stop()
+        except Exception:
+            pass
