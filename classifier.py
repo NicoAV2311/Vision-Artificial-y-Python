@@ -54,7 +54,8 @@ def classify_image(frame, top=1):
         # Convertir de BGR (OpenCV) a RGB (modelo)
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         resized_image = cv2.resize(frame_rgb, MODEL_INPUT_SIZE, interpolation=cv2.INTER_AREA)
-        input_tensor = preprocess(np.expand_dims(resized_image.astype(np.float32), axis=0))
+        # Usar preprocess_input directamente sobre la imagen uint8
+        input_tensor = preprocess(np.expand_dims(resized_image, axis=0))
         predictions = model.predict(input_tensor, verbose=0)
         decoded = decode(predictions, top=top)[0]
         result = [(label, float(conf)) for (_, label, conf) in decoded]

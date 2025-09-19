@@ -45,8 +45,20 @@ def get_working_camera(urls):
     for url in urls:
         try:
             cam = IPCamera(url)
-            logging.info(f"Cámara conectada exitosamente a {url}")
-            return cam
+            # Intentar leer un frame con timeout manual (1 segundo)
+            start = time.time()
+            frame = None
+            while time.time() - start < 1.0:
+                frame = cam.get_frame()
+                if frame is not None:
+                    break
+                time.sleep(0.05)
+            if frame is not None:
+                logging.info(f"Cámara conectada exitosamente a {url}")
+                return cam
+            else:
+                logging.warning(f"No se pudo obtener frame de {url} en 1 segundo")
+                cam.release()
         except Exception as e:
             logging.warning(f"No se pudo conectar a {url}: {e}")
     raise RuntimeError("No se pudo conectar a ninguna cámara IP.")
@@ -95,18 +107,28 @@ def rutina_paletizadora(velocidad_base=25, altura=0.6):
 
 def main():
 
-    try:
-        camera = get_working_camera(CAMERA_URLS)
-    except Exception as e:
-        logging.error(f"No se pudo inicializar la cámara: {e}")
-        return
+    camera = None
+    while camera is None:
+        try:
+            camera = get_working_camera(CAMERA_URLS)
+        except Exception as e:
+            logging.error(f"No se pudo inicializar la cámara: {e}. Reintentando en 2 segundos...")
+            time.sleep(2)
 
     try:
         while True:
             frame = camera.get_frame()
             if frame is None:
-                logging.warning("No se pudo capturar imagen.")
-                time.sleep(FRAME_DELAY)
+                logging.warning("No se pudo capturar imagen. Reintentando cámara...")
+                camera.release()
+                camera = None
+                # Reintentar obtener cámara
+                while camera is None:
+                    try:
+                        camera = get_working_camera(CAMERA_URLS)
+                    except Exception as e:
+                        logging.error(f"No se pudo reconectar la cámara: {e}. Reintentando en 2 segundos...")
+                        time.sleep(2)
                 continue
 
             resultados = classify_image(frame, top=3)
@@ -114,6 +136,7 @@ def main():
 
             for etiqueta, confianza in resultados:
                 if etiqueta in OBJETIVOS and confianza > 0.6:
+                    logging.info(f"¡Objeto detectado! Ejecutando rutina de paletizado para {etiqueta} (confianza={confianza:.2f})")
                     rutina_paletizadora()
                     break
 
@@ -129,7 +152,8 @@ def main():
         logging.error(f"Error en el bucle principal: {e}")
     finally:
         try:
-            camera.release()
+            if camera:
+                camera.release()
             cv2.destroyAllWindows()
         except Exception:
             pass

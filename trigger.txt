@@ -1,0 +1,4 @@
+# Este archivo es un trigger para la paletizadora
+# Su contenido puede ser cualquier texto, lo importante es que el script en el Brick detecte su existencia.
+# Puedes dejarlo vacío o poner una palabra clave:
+TRIGGER

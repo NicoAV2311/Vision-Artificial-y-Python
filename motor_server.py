@@ -139,10 +139,13 @@ class Handler(socketserver.StreamRequestHandler):
 if __name__ == "__main__":
     HOST, PORT = "0.0.0.0", 9999
     logging.info(f"Servidor de motores escuchando en {HOST}:{PORT}")
-    with socketserver.TCPServer((HOST, PORT), Handler) as server:
-        try:
+    try:
+        with socketserver.TCPServer((HOST, PORT), Handler) as server:
             server.serve_forever()
-        except KeyboardInterrupt:
-            logging.info("Servidor detenido por el usuario.")
+    except KeyboardInterrupt:
+        logging.info("Servidor detenido por el usuario.")
+        try:
             motor_vinilo.stop()
             motor_base.stop()
+        except Exception:
+            pass
