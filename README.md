@@ -1,8 +1,17 @@
 
 # Proyecto: Reconocimiento de Objetos con Cámara IP y Control de LEGO EV3 (EV3DEV)
 
+
 ## Descripción General
 Este proyecto implementa un sistema de visión artificial que utiliza la cámara de un celular como fuente de video para detectar objetos y controlar un robot LEGO EV3 con EV3DEV (basado en Debian). El procesamiento de imágenes se realiza en Python usando OpenCV y TensorFlow (o TensorFlow Lite para optimización en EV3). La arquitectura es modular para facilitar mantenimiento, pruebas y escalabilidad.
+
+**Mejoras recientes:**
+- Todos los módulos principales (`main_pc.py`, `motor_server.py`, `camera.py`, `ev3_controller.py`, `logica_paletizadora.py`) han sido completamente documentados con docstrings y comentarios detallados.
+- Se corrigieron y estandarizaron los estilos de código según PEP8.
+- Se robusteció el manejo de errores y validaciones en la inicialización de hardware, cámaras y recursos críticos.
+- Se mejoró la estructura y claridad de los scripts para facilitar el mantenimiento y la comprensión.
+- Se reforzó la reconexión automática y la gestión de recursos en la captura de frames y control de motores.
+- Se mantuvo la compatibilidad y modularidad para pruebas y despliegue en EV3 y PC.
 
 El sistema está diseñado para ser robusto, flexible y educativo, permitiendo experimentar con conceptos de inteligencia artificial, visión por computadora y robótica de manera integrada y práctica.
 
@@ -101,28 +110,33 @@ python3 main.py
 Detener con Ctrl + C.
 
 
+
 #### Descripción de módulos
-- **camera.py:** Captura frames desde cámara IP. Gestiona la conexión y reconexión automática, y proporciona una interfaz sencilla para obtener imágenes en tiempo real.
-- **classifier.py:** Clasifica imágenes con MobileNetV2/TFLite. Preprocesa los frames y utiliza IA para identificar objetos, devolviendo etiquetas y niveles de confianza.
-- **ev3_controller.py:** Controla el motor EV3. Inicializa los motores y permite su activación/desactivación según las órdenes recibidas.
-- **main.py:** Coordina todo el flujo. Orquesta la captura, clasificación y control del robot, implementando la lógica de decisión central del sistema.
+- **main_pc.py:** Script principal para la detección de objetos y control de la paletizadora desde PC. Captura imágenes de una cámara IP, clasifica objetos y envía comandos al EV3. Ahora incluye documentación completa, manejo robusto de errores y validaciones.
+- **motor_server.py:** Servidor TCP para controlar los motores de la paletizadora en EV3. Recibe comandos desde un cliente (PC) y ejecuta rutinas de movimiento. Incluye manejo de concurrencia, logs detallados y validaciones.
+- **camera.py:** Captura frames desde cámara IP. Gestiona la conexión y reconexión automática, y proporciona una interfaz sencilla y robusta para obtener imágenes en tiempo real. Documentación y manejo de errores mejorados.
+- **classifier.py:** Clasifica imágenes con EfficientNetV2B0/TensorFlow. Preprocesa los frames y utiliza IA para identificar objetos, devolviendo etiquetas y niveles de confianza. (No modificado por problemas de compatibilidad documentados).
+- **ev3_controller.py:** Controla el motor EV3. Inicializa los motores y permite su activación/desactivación según las órdenes recibidas. Incluye validaciones, logs y documentación mejorada.
+- **logica_paletizadora.py:** Script autónomo para control de la paletizadora con visión artificial y EV3. Incluye robustecimiento, documentación y manejo de errores en la lógica de paletizado.
+
 
 
 #### Calidad y pruebas
-- Cumplir con PEP8 (flake8 o ruff) para mantener la calidad del código.
-- Probar `classifier.py` con imágenes estáticas para validar la precisión del modelo.
+- Todo el código principal cumple con PEP8 y buenas prácticas de documentación.
+- Se han reforzado los logs y el manejo de excepciones para facilitar la depuración y el monitoreo.
+- Se recomienda probar `classifier.py` con imágenes estáticas para validar la precisión del modelo.
 - Simular cortes de red para probar la robustez de `camera.py`.
 - Usar mocks del motor en PC para validar `ev3_controller.py` sin hardware real.
 - Implementar pruebas unitarias y de integración usando `unittest` o `pytest`.
-- Registrar logs detallados para facilitar la depuración y el monitoreo del sistema.
+
 
 
 #### Solución de problemas
-- **No conecta a la cámara:** Verificar URL, red y configuración de la cámara IP. Probar la conexión desde un navegador web.
+- **No conecta a la cámara:** Verificar URL, red y configuración de la cámara IP. Probar la conexión desde un navegador web. El sistema ahora reconecta automáticamente y reporta fallos detallados por log.
 - **Rendimiento bajo en EV3:** Usar TensorFlow Lite para optimizar el uso de recursos.
-- **Motor no responde:** Revisar el puerto de conexión, permisos y estado del hardware.
+- **Motor no responde:** Revisar el puerto de conexión, permisos y estado del hardware. El sistema ahora valida y reporta errores de inicialización y ejecución de motores.
 - **Memoria insuficiente:** Usar `tflite-runtime` en lugar de TensorFlow completo para reducir el consumo de memoria.
-- **Errores de clasificación:** Verificar la calidad de la imagen y ajustar el umbral de confianza.
+- **Errores de clasificación:** Verificar la calidad de la imagen y ajustar el umbral de confianza. El sistema reporta errores de clasificación y permite ajustar el umbral fácilmente.
 
 
 #### Licencia
