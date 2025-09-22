@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 motor_server.py
 Servidor TCP para controlar los motores de la paletizadora en EV3.
 Recibe comandos desde un cliente (PC) y ejecuta rutinas de movimiento.
+Incluye manejo de concurrencia y logs detallados.
 """
+
 
 
 import socketserver
@@ -16,10 +19,15 @@ from ev3dev2.sensor import INPUT_1
 from ev3dev2.sensor.lego import TouchSensor
 
 
-# Inicialización de logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-# Inicialización de motores y sensor
+# Configuración global de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+
+# Inicialización de motores y sensor de presión
 try:
     motor_vinilo = LargeMotor(OUTPUT_A)   # Motor que sube/baja el vinilo
     motor_base = LargeMotor(OUTPUT_B)     # Motor de la base giratoria
@@ -29,13 +37,19 @@ except Exception as e:
     raise
 
 
-# -------------------------
-# Rutina de paletizado con control de concurrencia y logs
-# -------------------------
+
+# Control de concurrencia para la rutina de paletizado
 routine_lock = threading.Lock()
 routine_busy = False
 
 def rutina_paletizadora(velocidad_base=25, altura=0.6):
+    """
+    Ejecuta la rutina de paletizado con los parámetros dados.
+    Controla concurrencia para evitar ejecuciones simultáneas.
+    :param velocidad_base: Velocidad de la base giratoria.
+    :param altura: Altura de subida/bajada del vinilo.
+    :return: 'OK' si completado, 'BUSY' si ya estaba en ejecución, 'ERR' si hubo error.
+    """
     global routine_busy
     with routine_lock:
         if routine_busy:
@@ -80,10 +94,11 @@ def rutina_paletizadora(velocidad_base=25, altura=0.6):
         with routine_lock:
             routine_busy = False
 
-# -------------------------
-# Handler de conexiones
-# -------------------------
+
 class Handler(socketserver.StreamRequestHandler):
+    """
+    Handler de conexiones TCP entrantes. Procesa comandos y ejecuta rutinas.
+    """
     def handle(self):
         try:
             line = self.rfile.readline().decode("utf-8").strip()
@@ -100,10 +115,10 @@ class Handler(socketserver.StreamRequestHandler):
                 except Exception:
                     vel = 25
                     altura = 0.6
-                # responder inmediatamente
+                # Responder inmediatamente
                 self.wfile.write(b"STARTED\n")
                 self.wfile.flush()
-                # ejecutar rutina en un hilo aparte y loggear resultado
+                # Ejecutar rutina en un hilo aparte y loggear resultado
                 def run_and_log():
                     res = rutina_paletizadora(vel, altura)
                     logging.info(f"Resultado rutina: {res}")
@@ -133,10 +148,11 @@ class Handler(socketserver.StreamRequestHandler):
         except Exception as e:
             logging.error(f"Handler error: {e}")
 
-# -------------------------
-# Servidor principal
-# -------------------------
+
 if __name__ == "__main__":
+    """
+    Punto de entrada principal: inicia el servidor TCP y espera comandos.
+    """
     HOST, PORT = "0.0.0.0", 9999
     logging.info(f"Servidor de motores escuchando en {HOST}:{PORT}")
     try:

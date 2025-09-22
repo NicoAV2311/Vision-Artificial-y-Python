@@ -1,4 +1,11 @@
 
+
+"""
+main_pc.py
+Script principal para la detección de objetos y control de la paletizadora desde PC.
+Captura imágenes de una cámara IP, clasifica objetos y envía comandos al EV3.
+"""
+
 import time
 import logging
 import cv2
@@ -6,17 +13,32 @@ import socket
 from camera import IPCamera
 from classifier import classify_image
 
-# Configuración de logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-# Lista de posibles URLs de la cámara IP
+# Configuración de logging global
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+
+# Lista de posibles URLs de la cámara IP (probar en orden)
 CAMERA_URLS = [
     "http://192.168.1.28:8080/video",
     "http://192.168.1.29:8080/video"
 ]
-FRAME_DELAY = 0.5  # segundos
+
+# Tiempo de espera entre frames (segundos)
+FRAME_DELAY = 0.5
+
 
 def get_working_camera(urls):
+    """
+    Intenta conectar con una lista de URLs de cámara IP y retorna la primera que funcione.
+    Realiza un intento rápido (timeout manual de 1 segundo por IP).
+    :param urls: Lista de URLs de cámara IP.
+    :return: Objeto IPCamera conectado.
+    :raises RuntimeError: Si ninguna cámara responde.
+    """
     for url in urls:
         try:
             cam = IPCamera(url)
@@ -38,11 +60,13 @@ def get_working_camera(urls):
             logging.warning(f"No se pudo conectar a {url}: {e}")
     raise RuntimeError("No se pudo conectar a ninguna cámara IP.")
 
-# Dirección del EV3 (pon la IP real de tu EV3 aquí)
+
+# Dirección IP y puerto del EV3 (modificar según configuración de red)
 EV3_HOST = "192.168.137.3"
 EV3_PORT = 9999
 
-# Objetos que disparan la paletizadora y su configuración (velocidad base, altura)
+
+# Diccionario de objetos objetivo y su configuración (velocidad base, altura)
 OBJETIVOS_MAP = {
     "bottle": (25, 0.6),
     "banana": (25, 0.6),
@@ -50,12 +74,20 @@ OBJETIVOS_MAP = {
     "carton": (30, 0.6),
     "water_bottle": (25, 0.6)
 }
-CONF_THRESHOLD = 0.5  # confianza mínima
+
+# Umbral de confianza mínima para considerar una detección válida
+CONF_THRESHOLD = 0.5
+
 
 def send_palletize(host, port, velocidad, altura):
     """
     Envía el comando PALLETIZE al EV3 y retorna la respuesta.
     Maneja errores de conexión y reporta el estado.
+    :param host: IP o hostname del EV3.
+    :param port: Puerto TCP del EV3.
+    :param velocidad: Velocidad base para la rutina de paletizado.
+    :param altura: Altura para la rutina de paletizado.
+    :return: Respuesta del EV3 (str) o None si hay error.
     """
     try:
         with socket.create_connection((host, port), timeout=20) as sock:
@@ -69,7 +101,11 @@ def send_palletize(host, port, velocidad, altura):
         logging.error(f"Error al enviar comando al EV3: {e}")
         return None
 
+
 def main():
+    """
+    Función principal: captura frames, clasifica objetos y envía comandos al EV3 si corresponde.
+    """
     camera = get_working_camera(CAMERA_URLS)
     last_sent = None
     try:
@@ -84,7 +120,7 @@ def main():
             resultados = classify_image(frame, top=3)
             logging.info(f"Detecciones: {resultados}")
 
-            # Revisar si hay un objetivo con confianza suficiente (sin mostrar top-5)
+            # Revisar si hay un objetivo con confianza suficiente
             objetivo_detectado = False
             for etiqueta, confianza in resultados:
                 etiqueta_l = etiqueta.lower()
@@ -108,7 +144,7 @@ def main():
                 if objetivo_detectado:
                     break
 
-            # Mostrar la cámara en ventana normal
+            # Mostrar la cámara en ventana
             cv2.imshow("Cámara IP", frame)
 
             # Salir con la tecla 'q'
@@ -122,6 +158,7 @@ def main():
     finally:
         camera.release()
         cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()

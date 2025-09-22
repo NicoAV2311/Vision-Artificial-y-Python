@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 logica_paletizadora.py
-Script para control de paletizadora automática usando visión artificial y EV3.
+
+Script para control de paletizadora automática usando visión artificial y LEGO EV3.
 Detecta objetos en tiempo real y ejecuta rutina de paletizado si se detecta un objetivo.
 
-Autores: [Nicolas Arango Vergara, Miguel Angel Muñoz]
+Autores: Nicolas Arango Vergara, Miguel Angel Muñoz
 Fecha: 2025-09-14
 """
 
@@ -42,6 +43,18 @@ CAMERA_URLS = [
 FRAME_DELAY = 0.5  # segundos entre frames
 
 def get_working_camera(urls):
+    """
+    Intenta conectar a una de las cámaras IP proporcionadas y retorna el primer objeto IPCamera funcional.
+
+    Args:
+        urls (list): Lista de URLs de cámaras IP.
+
+    Returns:
+        IPCamera: Objeto IPCamera conectado y funcional.
+
+    Raises:
+        RuntimeError: Si no se puede conectar a ninguna cámara IP.
+    """
     for url in urls:
         try:
             cam = IPCamera(url)
@@ -69,10 +82,17 @@ OBJETIVOS = {"bottle", "banana"}
 
 def rutina_paletizadora(velocidad_base=25, altura=0.6):
     """
-    Ejecuta la rutina de paletizado.
+    Ejecuta la rutina de paletizado:
+    - Baja el vinilo hasta que el sensor de presión detecte contacto o se agote el tiempo.
+    - Mueve la base y realiza ciclos de subida/bajada del vinilo.
+
+    Args:
+        velocidad_base (int, optional): Velocidad de la base. Default=25.
+        altura (float, optional): Rotaciones para subir/bajar el vinilo. Default=0.6.
     """
     logging.info(f"Iniciando rutina de paletizado (velocidad={velocidad_base}, altura={altura})")
     try:
+        # Baja el vinilo hasta presionar el sensor o timeout
         motor_vinilo.on(15)
         start = time.time()
         while not sensor_presion.is_pressed:
@@ -82,8 +102,8 @@ def rutina_paletizadora(velocidad_base=25, altura=0.6):
                 break
         motor_vinilo.stop()
 
+        # Mueve la base y realiza 6 ciclos de subida/bajada
         motor_base.on(velocidad_base)
-
         for i in range(6):
             logging.info(f"Ciclo {i+1}/6: Subiendo vinilo")
             motor_vinilo.on_for_rotations(-15, altura)
@@ -99,6 +119,7 @@ def rutina_paletizadora(velocidad_base=25, altura=0.6):
         logging.info("Rutina completada")
     except Exception as e:
         logging.error(f"Error en rutina de paletizado: {e}")
+        # Intentar detener motores aunque haya error
         try:
             motor_vinilo.stop()
             motor_base.stop()
@@ -106,7 +127,13 @@ def rutina_paletizadora(velocidad_base=25, altura=0.6):
             pass
 
 def main():
-
+    """
+    Bucle principal del sistema de paletizado:
+    - Inicializa la cámara IP (con reconexión automática).
+    - Captura frames y detecta objetos usando el clasificador.
+    - Si se detecta un objetivo, ejecuta la rutina de paletizado.
+    - Muestra la imagen en pantalla y permite salir con 'q'.
+    """
     camera = None
     while camera is None:
         try:
