@@ -1,25 +1,23 @@
-
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 main_pc.py
 Script principal para la detección de objetos y control de la paletizadora desde PC.
-Captura imágenes de una cámara IP, clasifica objetos y envía comandos al EV3.
+Captura imágenes de una cámara IP, clasifica objetos y envía comandos al EV3 vía SSH.
 """
 
 import time
 import logging
 import cv2
-import socket
+import subprocess
 from camera import IPCamera
 from classifier import classify_image
-
 
 # Configuración de logging global
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
-
 
 # Lista de posibles URLs de la cámara IP (probar en orden)
 CAMERA_URLS = [
@@ -30,14 +28,9 @@ CAMERA_URLS = [
 # Tiempo de espera entre frames (segundos)
 FRAME_DELAY = 0.5
 
-
 def get_working_camera(urls):
     """
     Intenta conectar con una lista de URLs de cámara IP y retorna la primera que funcione.
-    Realiza un intento rápido (timeout manual de 1 segundo por IP).
-    :param urls: Lista de URLs de cámara IP.
-    :return: Objeto IPCamera conectado.
-    :raises RuntimeError: Si ninguna cámara responde.
     """
     for url in urls:
         try:
@@ -60,11 +53,10 @@ def get_working_camera(urls):
             logging.warning(f"No se pudo conectar a {url}: {e}")
     raise RuntimeError("No se pudo conectar a ninguna cámara IP.")
 
-
-# Dirección IP y puerto del EV3 (modificar según configuración de red)
-EV3_HOST = "192.168.137.3"
-EV3_PORT = 9999
-
+# Datos de conexión al EV3
+EV3_USER = "robot"                 # usuario por defecto de ev3dev
+EV3_HOST = "ev3dev.local"          # o IP del EV3, ej. "192.168.137.3"
+EV3_SCRIPT = "/home/robot/mover_motores.py"  # ruta absoluta al script en el EV3
 
 # Diccionario de objetos objetivo y su configuración (velocidad base, altura)
 OBJETIVOS_MAP = {
@@ -78,36 +70,34 @@ OBJETIVOS_MAP = {
 # Umbral de confianza mínima para considerar una detección válida
 CONF_THRESHOLD = 0.5
 
-
-def send_palletize(host, port, velocidad, altura):
+def send_palletize(velocidad, altura):
     """
-    Envía el comando PALLETIZE al EV3 y retorna la respuesta.
-    Maneja errores de conexión y reporta el estado.
-    :param host: IP o hostname del EV3.
-    :param port: Puerto TCP del EV3.
-    :param velocidad: Velocidad base para la rutina de paletizado.
-    :param altura: Altura para la rutina de paletizado.
-    :return: Respuesta del EV3 (str) o None si hay error.
+    Ejecuta el script de motores en el EV3 vía SSH con los parámetros dados.
     """
     try:
-        with socket.create_connection((host, port), timeout=20) as sock:
-            cmd = f"PALLETIZE {velocidad} {altura}\n"
-            logging.info(f"Enviando comando: {cmd.strip()} a {host}:{port}")
-            sock.sendall(cmd.encode("utf-8"))
-            response = sock.recv(1024).decode("utf-8").strip()
-            logging.info(f"Respuesta recibida del EV3: {response}")
-            return response
+        cmd = [
+            "ssh",
+            "-o", "StrictHostKeyChecking=no",
+            f"{EV3_USER}@{EV3_HOST}",
+            f"{EV3_SCRIPT} {velocidad} {altura}"
+        ]
+        logging.info(f"Ejecutando en EV3: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        logging.info(f"Salida EV3:\n{result.stdout}")
+        if result.returncode == 0:
+            return "OK"
+        else:
+            logging.error(f"Error en EV3: {result.stderr}")
+            return None
     except Exception as e:
-        logging.error(f"Error al enviar comando al EV3: {e}")
+        logging.error(f"Error al ejecutar rutina en EV3: {e}")
         return None
-
 
 def main():
     """
     Función principal: captura frames, clasifica objetos y envía comandos al EV3 si corresponde.
     """
     camera = get_working_camera(CAMERA_URLS)
-    last_sent = None
     try:
         while True:
             frame = camera.get_frame()
@@ -126,19 +116,13 @@ def main():
                 etiqueta_l = etiqueta.lower()
                 for objetivo, (vel, altura) in OBJETIVOS_MAP.items():
                     if objetivo in etiqueta_l and confianza >= CONF_THRESHOLD:
-                        logging.info("Detectado %s (%.2f). Enviando comando a EV3...", etiqueta, confianza)
-                        resp = send_palletize(EV3_HOST, EV3_PORT, vel, altura)
-                        if resp == "BUSY":
-                            logging.warning("EV3 ocupado, esperando para reintentar...")
-                            time.sleep(1.0)
-                        elif resp == "STARTED" or resp == "OK":
-                            logging.info("Rutina iniciada correctamente en EV3.")
-                            last_sent = (objetivo, time.time())
+                        logging.info("Detectado %s (%.2f). Ejecutando rutina en EV3...", etiqueta, confianza)
+                        resp = send_palletize(vel, altura)
+                        if resp == "OK":
+                            logging.info("Rutina ejecutada correctamente en EV3.")
                             time.sleep(1.0)  # evitar disparos múltiples seguidos
-                        elif resp is None:
-                            logging.error("No se recibió respuesta del EV3.")
                         else:
-                            logging.info(f"Respuesta inesperada del EV3: {resp}")
+                            logging.error("Falló la ejecución en EV3.")
                         objetivo_detectado = True
                         break
                 if objetivo_detectado:
@@ -152,13 +136,11 @@ def main():
                 break
 
             time.sleep(FRAME_DELAY)
-
     except KeyboardInterrupt:
         logging.info("Ejecución interrumpida por el usuario.")
     finally:
         camera.release()
         cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     main()
