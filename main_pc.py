@@ -23,7 +23,7 @@ logging.basicConfig(
 CAMERA_URLS = [
     "http://192.168.1.28:8080/video",
     "http://192.168.1.29:8080/video"
-]
+    ]
 
 # Tiempo de espera entre frames (segundos)
 FRAME_DELAY = 0.5
