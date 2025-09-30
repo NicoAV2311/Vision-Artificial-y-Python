@@ -64,7 +64,9 @@ OBJETIVOS_MAP = {
     "banana": (25, 0.6),
     "monitor": (30, 0.6),
     "carton": (30, 0.6),
-    "water_bottle": (25, 0.6)
+    "water_bottle": (25, 0.6),
+    "joystick": (20, 0.6),
+    "carton": (20, 1.0)
 }
 
 # Umbral de confianza mínima para considerar una detección válida
