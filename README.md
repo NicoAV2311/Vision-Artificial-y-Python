@@ -44,13 +44,13 @@ El sistema está diseñado para ser robusto, flexible y educativo, permitiendo e
 El sistema sigue una arquitectura modular donde cada componente tiene una responsabilidad clara y definida. El flujo de datos y control es el siguiente:
 
 1. **Captura de imagen:** La cámara IP (por ejemplo, un celular con IP Webcam) transmite imágenes en tiempo real. El módulo `camera.py` gestiona la conexión, reconexión y obtención de frames, asegurando robustez ante fallos de red.
-2. **Clasificación de imagen:** Los frames capturados se envían al clasificador (`classifier.py`), que utiliza un modelo de IA preentrenado (MobileNetV2) para identificar objetos en la imagen.
+2. **Clasificación de imagen:** Los frames capturados se envían al clasificador (`classifier.py`), que utiliza un modelo de IA preentrenado (EfficientNetV2B0) para identificar objetos en la imagen.
 3. **Lógica de decisión:** El módulo principal (`main.py`) procesa los resultados de la clasificación y decide si se debe activar el robot EV3, en función de la presencia y confianza del objeto objetivo.
 4. **Control del robot:** Si el objeto objetivo es detectado con suficiente confianza, el sistema envía una orden al controlador del EV3 (`ev3_controller.py`), que acciona los motores del robot.
 
 Todo el proceso es cíclico y en tiempo real, permitiendo una respuesta rápida ante la detección de objetos.
 
-**Diagrama de flujo general:**
+**Diagrama de flujo general (flujo por SSH):**
 
 ```
 [Cámara IP del celular]
@@ -59,7 +59,7 @@ Todo el proceso es cíclico y en tiempo real, permitiendo una respuesta rápida 
 [camera.py] --captura imagen--> [classifier.py] --detecta objeto-->
 	│                                               │
 	▼                                               ▼
-[main.py] --decide acción--> [ev3_controller.py (solo en EV3)]
+[main_pc.py] --decide acción--> [SSH] --> [mover_motores.py (EV3)]
 ```
 
 
@@ -103,17 +103,30 @@ Configura IP Webcam en el celular, inicia el servidor y copia la URL. Estos par�
 
 
 #### Ejecución
-**En el EV3:**
+
+Flujo recomendado (PC + EV3 usando SSH):
+
+1. En la PC (clasificación y control):
+
 ```bash
-python3 main.py
+python3 main_pc.py
 ```
-Detener con Ctrl + C.
+
+2. `main_pc.py` invoca la rutina en el EV3 mediante SSH, ejecutando `mover_motores.py` en el brick. Asegúrate de que el usuario `robot` exista y tenga permisos, y que el EV3 sea accesible por nombre (o coloca la IP en `EV3_HOST`).
+
+3. Para probar la invocación SSH manualmente desde la PC:
+
+```powershell
+ssh robot@ev3dev.local "python3 /home/robot/mover_motores.py 25 0.6"
+```
+
+Detener con Ctrl + C en la PC para interrumpir `main_pc.py`.
 
 
 
 #### Descripción de módulos
 - **main_pc.py:** Script principal para la detección de objetos y control de la paletizadora desde PC. Captura imágenes de una cámara IP, clasifica objetos y envía comandos al EV3. Ahora incluye documentación completa, manejo robusto de errores y validaciones.
-- **motor_server.py:** Servidor TCP para controlar los motores de la paletizadora en EV3. Recibe comandos desde un cliente (PC) y ejecuta rutinas de movimiento. Incluye manejo de concurrencia, logs detallados y validaciones.
+- **motor_server.py (opcional/no usado en el flujo actual):** Implementa un servidor TCP para recibir comandos desde la PC. Está disponible como alternativa, pero en este proyecto se decidió usar invocación por SSH a `mover_motores.py`. Si en el futuro prefieres una conexión persistente y baja latencia, `motor_server.py` puede activarse en el EV3 y adaptarse al cliente en la PC.
 - **camera.py:** Captura frames desde cámara IP. Gestiona la conexión y reconexión automática, y proporciona una interfaz sencilla y robusta para obtener imágenes en tiempo real. Documentación y manejo de errores mejorados.
 - **classifier.py:** Clasifica imágenes con EfficientNetV2B0/TensorFlow. Preprocesa los frames y utiliza IA para identificar objetos, devolviendo etiquetas y niveles de confianza. (No modificado por problemas de compatibilidad documentados).
 - **ev3_controller.py:** Controla el motor EV3. Inicializa los motores y permite su activación/desactivación según las órdenes recibidas. Incluye validaciones, logs y documentación mejorada.
