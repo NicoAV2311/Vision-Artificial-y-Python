@@ -121,7 +121,7 @@ def main():
                         resp = send_palletize(vel, altura)
                         if resp == "OK":
                             logging.info("Rutina ejecutada correctamente en EV3.")
-                            time.sleep(1.0)  # evitar disparos múltiples seguidos
+                            time.sleep(10.0)  # evitar disparos múltiples seguidos
                         else:
                             logging.error("Falló la ejecución en EV3.")
                         objetivo_detectado = True
