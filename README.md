@@ -1,3 +1,121 @@
+# Proyecto: Reconocimiento de Objetos con Cámara IP y Control de LEGO EV3 (EV3DEV)
+
+Descripción
+-----------
+Este repositorio contiene una solución modular para detectar objetos desde una cámara IP y accionar una paletizadora construida con LEGO EV3 (ejecutando EV3DEV) mediante comandos remotos (SSH). Está orientado a desarrollo en PC (clasificación con TensorFlow/OpenCV) y despliegue en el brick EV3 (control de motores con python-ev3dev2).
+
+Resumen de mejoras y estado actual
+----------------------------------
+- Añadida interfaz gráfica PyQt6 (`app_gui.py`) para monitorizar el stream de la cámara, ver predicciones y logs en tiempo real, y lanzar rutinas de paletizado por SSH.
+- Integración segura con EV3:
+	- Invocación por SSH para ejecutar `mover_motores.py` en el brick (método por defecto para la ejecución desde PC).
+	- Soporte para ejecución local con `ev3dev2` si la GUI corre en el brick y la inicialización del hardware es satisfactoria.
+	- `send_stop_motors()` para detener motores remotamente en caso de emergencia.
+- Robustez y tolerancia a fallos:
+	- Reconexión automática de cámara en `camera.py`.
+	- Clasificador cargado en un hilo separado (`ClassifierThread`) para evitar bloquear la UI. TensorFlow es pre-cargado de forma guardada al iniciar la app para reducir errores de carga en Windows.
+	- Protecciones contra ejecución accidental: shutdown guards (`_shutting_down`, `MODULE_SHUTTING_DOWN`), y una bandera "one-shot" para que la rutina de paletizado sólo se ejecute una vez por sesión (`_trigger_launched`).
+- Diagnóstico remoto:
+	- Botón "Re-Check EV3" en la GUI que ejecuta checks SSH (varias rutas de python y verificación sysfs) y vuelca stdout/stderr en el panel de logs para facilitar la depuración remota.
+- Documentación y limpieza:
+	- Comentarios, docstrings y mensajes de log extendidos en módulos principales.
+	- Correcciones de errores previos (p. ej. SyntaxError y condiciones de carrera en el init/import).
+
+Estructura de archivos
+----------------------
+- `app_gui.py` — Nueva GUI PyQt6 que muestra cámara, predicciones y logs; integra llamadas SSH y rutinas locales según disponibilidad.
+- `main_pc.py` — Script CLI que captura frames, clasifica y ejecuta la rutina en el EV3 vía SSH (flujo clásico usado en producción/pruebas automatizadas).
+- `camera.py` — Manejo robusto de captura desde cámara IP con reconexión.
+- `classifier.py` — Clasificador basado en EfficientNetV2B0 (TensorFlow). Carga el modelo al import; ver sección 'TensorFlow en Windows' si da errores.
+- `mover_motores.py` — Script que reside en el EV3 y ejecuta la rutina de paletizado cuando se le invoca por SSH.
+- `ev3_controller.py`, `logica_paletizadora.py`, `motor_server.py` — Módulos auxiliares con variantes y utilidades (control local, servidor TCP alternativo, rutinas).
+
+Requisitos
+----------
+- PC (desarrollo): Python 3.10+ recomendado, OpenCV, numpy, TensorFlow (o TensorFlow-lite si prefieres), PyQt6.
+- EV3 (brick): EV3DEV Linux con `python3` y `python-ev3dev2` instalado.
+
+Recomendado (ejemplo):
+- En PC (virtualenv/venv):
+
+```powershell
+python -m venv .venv; .\\.venv\\Scripts\\Activate.ps1
+pip install -r requirements_pc.txt
+```
+
+- En EV3 (ssh al brick):
+
+```bash
+pip3 install -r requirements_ev3.txt
+```
+
+Notas sobre TensorFlow en Windows
+---------------------------------
+En Windows existe un problema común con la carga del runtime nativo de TensorFlow cuando se importan ciertas librerías (Qt/PyQt) en un orden que provoca conflictos de DLL. Para mitigar esto el archivo `app_gui.py` intenta una "pre-import" de TensorFlow antes de importar PyQt6; esto reduce la probabilidad de error, pero si aún aparece 'Failed to load the native TensorFlow runtime' considera:
+- Usar un entorno virtual limpio (venv/conda) con una versión compatible de Python (3.10/3.11).
+- Instalar la versión de TensorFlow adecuada para tu CPU/GPU y el Microsoft Visual C++ Redistributable (2015-2019/2022).
+- Alternativa: ejecutar la inferencia en un proceso separado (p. ej. `main_pc.py`) y comunicar los resultados a la GUI por socket o archivos temporales.
+
+Cómo ejecutar
+-------------
+Flujo típico (PC + EV3 por SSH):
+
+1. Enciende el EV3 con EV3DEV y asegúrate de que `mover_motores.py` esté en `/home/robot/` y tenga permisos de ejecución.
+2. En la PC, activa tu entorno y lanza:
+
+```powershell
+python app_gui.py
+```
+
+3. En la GUI: presiona `Start` para iniciar captura y clasificación.
+4. Al detectar un objetivo (según `OBJETIVOS_MAP` y `CONF_THRESHOLD`), la GUI lanzará la rutina remota por SSH. La GUI también mostrará en el panel de logs stdout/stderr del brick cuando la llamada SSH se complete.
+
+Nota: si prefieres la versión de consola, `python main_pc.py` realiza el mismo flujo sin interfaz gráfica, y en `main_pc.py` se respeta un `time.sleep(10)` tras ejecutar la rutina para evitar disparos múltiples seguidos.
+
+Diagnóstico EV3 (Re-Check EV3)
+------------------------------
+Si la GUI no detecta el EV3, usa el botón "Re-Check EV3" para ejecutar comprobaciones remotas (prueba varios interpretadores Python en el brick y verifica `/sys/class/tacho-motor`). Los resultados salen en el panel de logs y ayudan a decidir si el brick tiene `ev3dev2` instalado o si hay diferencias en el PATH remoto.
+
+Comportamiento en entornos mixtos
+---------------------------------
+- Si `app_gui.py` corre en el propio EV3 y la inicialización del hardware local es satisfactoria, el programa usará la rutina local basada en `ev3dev2` para evitar la latencia de SSH.
+- Si corre en PC (o la inicialización local falla), la GUI usará SSH para invocar `mover_motores.py` en el brick.
+
+Seguridad y stop de emergencia
+------------------------------
+- `send_stop_motors()` envía un comando remoto para detener los motores en caso de emergencia.
+- En la finalización de la rutina la GUI intenta detener los motores y marca el estado para evitar relanzamientos accidentales (flag one-shot `_trigger_launched`).
+
+Sugerencias de mejora futuras
+-----------------------------
+- Añadir un botón "Reset" en la GUI para permitir re-ejecutar la rutina (actualmente es one-shot por sesión).
+- Registrar automáticamente los logs del Re-Check en un archivo para análisis remoto.
+- Desacoplar la inferencia en un proceso independiente para evitar problemas de carga de TensorFlow y mejorar estabilidad en Windows.
+- Implementar autenticación/llaves SSH dedicadas y comprobaciones de conexión más explícitas.
+
+Solución de problemas comunes
+-----------------------------
+- "Failed to load the native TensorFlow runtime": usar un entorno limpio, instalar redistribuible VC++ y verificar la compatibilidad de la versión de TensorFlow.
+- "LargeMotor(outA) is not connected": significa que se intentó ejecutar la rutina local en una máquina que no tiene motores físicos; la GUI ahora detecta esto y preferirá SSH.
+- "No se puede conectar con la cámara": revisa la URL de la cámara IP, que el teléfono y la PC estén en la misma red y que la app IP Webcam esté corriendo.
+
+Contribuciones
+--------------
+Pull requests y issues son bienvenidos. Para cambios funcionales importantes, abre un issue primero describiendo el caso de uso y la prueba propuesta.
+
+Licencia
+--------
+MIT
+
+Autores
+-------
+- Nicolas Arango Vergara
+- Miguel Angel Muñoz
+
+
+***
+
+README actualizado para reflejar las mejoras de la GUI, la estrategia SSH y las medidas de robustez y diagnóstico.
 
 # Proyecto: Reconocimiento de Objetos con Cámara IP y Control de LEGO EV3 (EV3DEV)
 
