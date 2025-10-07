@@ -34,11 +34,11 @@ def rutina_paletizado(velocidad_base, altura):
 
     # Subir y bajar varias veces
     for _ in range(6):
-        motor_vinilo.on_for_rotations(-15, altura)  # Subir
+        motor_vinilo.on_for_rotations(-15, altura * 0.5)  # Subir (mitad de la altura original)
         sleep(0.5)
         detener_vinilo()
         sleep(0.5)
-        motor_vinilo.on_for_rotations(15, altura)  # Bajar
+        motor_vinilo.on_for_rotations(15, altura * 0.5)  # Bajar (mitad de la altura original)
         sleep(0.5)
         detener_vinilo()
 
@@ -47,7 +47,7 @@ def rutina_paletizado(velocidad_base, altura):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Uso: rutina_botella.py <velocidad> <altura>")
+        print("Uso: rutina_caja.py <velocidad> <altura>")
         sys.exit(1)
 
     velocidad = int(sys.argv[1])

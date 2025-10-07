@@ -56,7 +56,7 @@ def get_working_camera(urls):
 # Datos de conexión al EV3
 EV3_USER = "robot"                 # usuario por defecto de ev3dev
 EV3_HOST = "ev3dev.local"          # o IP del EV3, ej. "192.168.137.3"
-EV3_SCRIPT = "/home/robot/rutina_botella.py"  # ruta absoluta al script en el EV3
+EV3_SCRIPT = ("/home/robot/rutina_botella.py", "/home/robot/rutina_caja.py")  # ruta absoluta al script en el EV3, para las dos opciones
 
 # Diccionario de objetos objetivo y su configuración (velocidad base, altura)
 OBJETIVOS_MAP = {
@@ -76,11 +76,39 @@ def send_palletize(velocidad, altura):
     Ejecuta el script de motores en el EV3 vía SSH con los parámetros dados.
     """
     try:
+        # Backwards-compatible wrapper that calls a specific remote script
         cmd = [
             "ssh",
             "-o", "StrictHostKeyChecking=no",
             f"{EV3_USER}@{EV3_HOST}",
             f"{EV3_SCRIPT} {velocidad} {altura}"
+        ]
+        logging.info(f"Ejecutando en EV3: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        logging.info(f"Salida EV3:\n{result.stdout}")
+        if result.returncode == 0:
+            return "OK"
+        else:
+            logging.error(f"Error en EV3: {result.stderr}")
+            return None
+    except Exception as e:
+        logging.error(f"Error al ejecutar rutina en EV3: {e}")
+        return None
+
+
+def send_routine(script_name: str, velocidad, altura):
+    """
+    Ejecuta un script específico en el EV3 vía SSH. `script_name` es el
+    nombre del archivo en /home/robot/ (por ejemplo 'rutina_botella.py' o
+    'rutina_caja.py'). Retorna 'OK' si returncode == 0.
+    """
+    try:
+        remote = f"/home/robot/{script_name}"
+        cmd = [
+            "ssh",
+            "-o", "StrictHostKeyChecking=no",
+            f"{EV3_USER}@{EV3_HOST}",
+            f"{remote} {velocidad} {altura}"
         ]
         logging.info(f"Ejecutando en EV3: {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
@@ -118,7 +146,11 @@ def main():
                 for objetivo, (vel, altura) in OBJETIVOS_MAP.items():
                     if objetivo in etiqueta_l and confianza >= CONF_THRESHOLD:
                         logging.info("Detectado %s (%.2f). Ejecutando rutina en EV3...", etiqueta, confianza)
-                        resp = send_palletize(vel, altura)
+                        # Si es un cartón, usar la rutina específica de caja
+                        if objetivo == "carton":
+                            resp = send_routine("rutina_caja.py", vel, altura)
+                        else:
+                            resp = send_routine("rutina_botella.py", vel, altura)
                         if resp == "OK":
                             logging.info("Rutina ejecutada correctamente en EV3.")
                             time.sleep(10.0)  # evitar disparos múltiples seguidos

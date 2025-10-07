@@ -166,6 +166,31 @@ def send_stop_motors():
         return False
 
 
+def send_routine(script_name: str, velocidad, altura):
+    """
+    Ejecuta un script específico en el EV3 vía SSH. `script_name` es el
+    nombre del archivo en /home/robot/ (por ejemplo 'rutina_botella.py' o
+    'rutina_caja.py'). Retorna 'OK' si returncode == 0.
+    """
+    try:
+        remote = f"/home/robot/{script_name}"
+        cmd = ["ssh", "-o", "StrictHostKeyChecking=no", f"{EV3_USER}@{EV3_HOST}", f"{remote} {velocidad} {altura}"]
+        logging.info(f"Ejecutando en EV3: {' '.join(cmd)} (thread={threading.current_thread().name})")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.stdout:
+            logging.info(f"Salida EV3:\n{result.stdout}")
+        if result.stderr:
+            logging.error(f"Error EV3:\n{result.stderr}")
+        if result.returncode == 0:
+            return "OK"
+        else:
+            logging.error(f"Error en EV3: returncode={result.returncode}")
+            return None
+    except Exception as e:
+        logging.error(f"Error al ejecutar rutina en EV3: {e}")
+        return None
+
+
 def check_ev3_via_ssh(timeout: int = 10) -> bool:
     """
     Ejecuta un pequeño script remoto vía SSH que intenta inicializar los
@@ -615,7 +640,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 try:
                     # preferir la función local send_palletize (implementada en
                     # este módulo). Si no está disponible, intentar importarla
-                    # desde main_pc de forma perezosa.
+                    # desde main_pc de forma perezosa. We'll use send_routine
+                    # helper when executing remotely.
                     try:
                         _send_palletize = send_palletize
                     except NameError:
@@ -626,13 +652,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 try:
                     logging.info(f"Objetivo detectado '{obj}' -> ejecutando rutina EV3 (vel={v}, altura={h})")
 
-                    # Ejecutar la rutina; si existe rutina local, usarla
+                    # Ejecutar la rutina; si existe rutina local, usarla.
+                    # Si el objetivo es 'carton' usamos la rutina_caja.py
                     res = None
                     try:
                         if LOCAL_EV3_AVAILABLE:
-                            res = rutina_paletizadora_local(v, h)
+                            # local routine does full rotations; for carton we
+                            # want half the travel, so pass h*0.5
+                            if obj == "carton":
+                                res = rutina_paletizadora_local(v, h * 0.5)
+                            else:
+                                res = rutina_paletizadora_local(v, h)
                         else:
-                            res = _send_palletize(v, h)
+                            # remote execution: choose script name
+                            if obj == "carton":
+                                res = send_routine("rutina_caja.py", v, h)
+                            else:
+                                res = send_routine("rutina_botella.py", v, h)
                     except Exception as e:
                         logging.error(f"Error durante la ejecución de la rutina: {e}")
 
@@ -713,7 +749,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     from main_pc import send_palletize as _send_palletize
 
                 logging.info("Prueba SSH: ejecutando rutina en EV3...")
-                res = _send_palletize(25, 0.6)
+                # Use the generic send_routine to call the default bottle routine
+                try:
+                    res = send_routine("rutina_botella.py", 25, 0.6)
+                except Exception:
+                    res = _send_palletize(25, 0.6)
                 if res == "OK":
                     logging.info("Prueba SSH completada: OK")
                 else:
