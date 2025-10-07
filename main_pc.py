@@ -56,7 +56,7 @@ def get_working_camera(urls):
 # Datos de conexión al EV3
 EV3_USER = "robot"                 # usuario por defecto de ev3dev
 EV3_HOST = "ev3dev.local"          # o IP del EV3, ej. "192.168.137.3"
-EV3_SCRIPT = "/home/robot/mover_motores.py"  # ruta absoluta al script en el EV3
+EV3_SCRIPT = "/home/robot/rutina_botella.py"  # ruta absoluta al script en el EV3
 
 # Diccionario de objetos objetivo y su configuración (velocidad base, altura)
 OBJETIVOS_MAP = {

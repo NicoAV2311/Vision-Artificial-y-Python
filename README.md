@@ -8,7 +8,7 @@ Resumen de mejoras y estado actual
 ----------------------------------
 - Añadida interfaz gráfica PyQt6 (`app_gui.py`) para monitorizar el stream de la cámara, ver predicciones y logs en tiempo real, y lanzar rutinas de paletizado por SSH.
 - Integración segura con EV3:
-	- Invocación por SSH para ejecutar `mover_motores.py` en el brick (método por defecto para la ejecución desde PC).
+	- Invocación por SSH para ejecutar `rutina_botella.py` en el brick (método por defecto para la ejecución desde PC).
 	- Soporte para ejecución local con `ev3dev2` si la GUI corre en el brick y la inicialización del hardware es satisfactoria.
 	- `send_stop_motors()` para detener motores remotamente en caso de emergencia.
 - Robustez y tolerancia a fallos:
@@ -27,7 +27,7 @@ Estructura de archivos
 - `main_pc.py` — Script CLI que captura frames, clasifica y ejecuta la rutina en el EV3 vía SSH (flujo clásico usado en producción/pruebas automatizadas).
 - `camera.py` — Manejo robusto de captura desde cámara IP con reconexión.
 - `classifier.py` — Clasificador basado en EfficientNetV2B0 (TensorFlow). Carga el modelo al import; ver sección 'TensorFlow en Windows' si da errores.
-- `mover_motores.py` — Script que reside en el EV3 y ejecuta la rutina de paletizado cuando se le invoca por SSH.
+`rutina_botella.py` — Script que reside en el EV3 y ejecuta la rutina de paletizado cuando se le invoca por SSH.
 - `ev3_controller.py`, `logica_paletizadora.py`, `motor_server.py` — Módulos auxiliares con variantes y utilidades (control local, servidor TCP alternativo, rutinas).
 
 Requisitos
@@ -60,7 +60,7 @@ Cómo ejecutar
 -------------
 Flujo típico (PC + EV3 por SSH):
 
-1. Enciende el EV3 con EV3DEV y asegúrate de que `mover_motores.py` esté en `/home/robot/` y tenga permisos de ejecución.
+1. Enciende el EV3 con EV3DEV y asegúrate de que `rutina_botella.py` esté en `/home/robot/` y tenga permisos de ejecución.
 2. En la PC, activa tu entorno y lanza:
 
 ```powershell
@@ -79,7 +79,7 @@ Si la GUI no detecta el EV3, usa el botón "Re-Check EV3" para ejecutar comproba
 Comportamiento en entornos mixtos
 ---------------------------------
 - Si `app_gui.py` corre en el propio EV3 y la inicialización del hardware local es satisfactoria, el programa usará la rutina local basada en `ev3dev2` para evitar la latencia de SSH.
-- Si corre en PC (o la inicialización local falla), la GUI usará SSH para invocar `mover_motores.py` en el brick.
+- Si corre en PC (o la inicialización local falla), la GUI usará SSH para invocar `rutina_botella.py` en el brick.
 
 Seguridad y stop de emergencia
 ------------------------------
@@ -177,7 +177,7 @@ Todo el proceso es cíclico y en tiempo real, permitiendo una respuesta rápida 
 [camera.py] --captura imagen--> [classifier.py] --detecta objeto-->
 	│                                               │
 	▼                                               ▼
-[main_pc.py] --decide acción--> [SSH] --> [mover_motores.py (EV3)]
+[main_pc.py] --decide acción--> [SSH] --> [rutina_botella.py (EV3)]
 ```
 
 
@@ -230,12 +230,12 @@ Flujo recomendado (PC + EV3 usando SSH):
 python3 main_pc.py
 ```
 
-2. `main_pc.py` invoca la rutina en el EV3 mediante SSH, ejecutando `mover_motores.py` en el brick. Asegúrate de que el usuario `robot` exista y tenga permisos, y que el EV3 sea accesible por nombre (o coloca la IP en `EV3_HOST`).
+2. `main_pc.py` invoca la rutina en el EV3 mediante SSH, ejecutando `rutina_botella.py` en el brick. Asegúrate de que el usuario `robot` exista y tenga permisos, y que el EV3 sea accesible por nombre (o coloca la IP en `EV3_HOST`).
 
 3. Para probar la invocación SSH manualmente desde la PC:
 
 ```powershell
-ssh robot@ev3dev.local "python3 /home/robot/mover_motores.py 25 0.6"
+ssh robot@ev3dev.local "python3 /home/robot/rutina_botella.py 25 0.6"
 ```
 
 Detener con Ctrl + C en la PC para interrumpir `main_pc.py`.
@@ -244,7 +244,7 @@ Detener con Ctrl + C en la PC para interrumpir `main_pc.py`.
 
 #### Descripción de módulos
 - **main_pc.py:** Script principal para la detección de objetos y control de la paletizadora desde PC. Captura imágenes de una cámara IP, clasifica objetos y envía comandos al EV3. Ahora incluye documentación completa, manejo robusto de errores y validaciones.
-- **motor_server.py (opcional/no usado en el flujo actual):** Implementa un servidor TCP para recibir comandos desde la PC. Está disponible como alternativa, pero en este proyecto se decidió usar invocación por SSH a `mover_motores.py`. Si en el futuro prefieres una conexión persistente y baja latencia, `motor_server.py` puede activarse en el EV3 y adaptarse al cliente en la PC.
+- **motor_server.py (opcional/no usado en el flujo actual):** Implementa un servidor TCP para recibir comandos desde la PC. Está disponible como alternativa, pero en este proyecto se decidió usar invocación por SSH a `rutina_botella.py`. Si en el futuro prefieres una conexión persistente y baja latencia, `motor_server.py` puede activarse en el EV3 y adaptarse al cliente en la PC.
 - **camera.py:** Captura frames desde cámara IP. Gestiona la conexión y reconexión automática, y proporciona una interfaz sencilla y robusta para obtener imágenes en tiempo real. Documentación y manejo de errores mejorados.
 - **classifier.py:** Clasifica imágenes con EfficientNetV2B0/TensorFlow. Preprocesa los frames y utiliza IA para identificar objetos, devolviendo etiquetas y niveles de confianza. (No modificado por problemas de compatibilidad documentados).
 - **ev3_controller.py:** Controla el motor EV3. Inicializa los motores y permite su activación/desactivación según las órdenes recibidas. Incluye validaciones, logs y documentación mejorada.

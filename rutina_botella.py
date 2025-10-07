@@ -47,7 +47,7 @@ def rutina_paletizado(velocidad_base, altura):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Uso: mover_motores.py <velocidad> <altura>")
+        print("Uso: rutina_botella.py <velocidad> <altura>")
         sys.exit(1)
 
     velocidad = int(sys.argv[1])

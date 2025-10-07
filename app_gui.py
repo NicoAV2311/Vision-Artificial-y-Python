@@ -76,7 +76,7 @@ OBJETIVOS_MAP = {
 # Configuración EV3 para invocación por SSH (misma lógica que en main_pc.py)
 EV3_USER = "robot"
 EV3_HOST = "ev3dev.local"
-EV3_SCRIPT = "/home/robot/mover_motores.py"
+EV3_SCRIPT = "/home/robot/rutina_botella.py"
 
 import subprocess
 import signal
