@@ -34,11 +34,11 @@ def rutina_paletizado(velocidad_base, altura):
 
     # Subir y bajar varias veces
     for _ in range(6):
-        motor_vinilo.on_for_rotations(-15, altura)  # Subir
+        motor_vinilo.on_for_rotations(-15, altura * 2)  # Subir
         sleep(0.5)
         detener_vinilo()
         sleep(0.5)
-        motor_vinilo.on_for_rotations(15, altura)  # Bajar
+        motor_vinilo.on_for_rotations(15, altura * 2)  # Bajar
         sleep(0.5)
         detener_vinilo()
 

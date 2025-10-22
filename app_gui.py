@@ -662,7 +662,7 @@ class MainWindow(QtWidgets.QMainWindow):
                             if obj == "carton":
                                 res = rutina_paletizadora_local(v, h * 0.5)
                             else:
-                                res = rutina_paletizadora_local(v, h)
+                                res = rutina_paletizadora_local(v, h * 2)
                         else:
                             # remote execution: choose script name
                             if obj == "carton":
