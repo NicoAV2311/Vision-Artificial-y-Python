@@ -20,7 +20,7 @@ class IPCamera:
     Permite conectar, obtener frames y liberar el recurso de la cámara de forma robusta.
     """
 
-    def __init__(self, url, reconnect_delay=2):
+    def __init__(self, url, reconnect_delay=0.5):
         """
         Inicializa la cámara IP y realiza la primera conexión.
 
